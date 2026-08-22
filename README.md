@@ -357,19 +357,67 @@ docker exec -it retry-dlq-kafka /opt/kafka/bin/kafka-console-consumer.sh \
 
 ## Tests
 
-The three requested cases are covered in `NotificationHandlerTest`:
+The three focused retry behavior tests remain in `NotificationHandlerTest`:
 
 ```bash
 mvn -pl notification-service test
 ```
 
-The test Kafka-facing beans are excluded and a test DLQ publisher is used, so the retry behavior tests do not require a running Kafka broker.
+Those unit-style Quarkus tests use a test-only `DlqPublisher` alternative and do not exercise the Kafka transport. They remain intentionally fast and focused on retry behavior.
 
 Covered scenarios:
 
 1. provider succeeds immediately -> one attempt
 2. provider fails twice -> succeeds on attempt three
-3. provider always fails -> four attempts -> failure is published to the test DLQ
+3. provider always fails -> four attempts -> failure is handed to the test DLQ publisher
+
+## Kafka integration tests
+
+`KafkaRetryDlqIT` proves the real Kafka path. The integration profile automatically starts a Kafka broker through Quarkus Kafka Companion / Testcontainers, so `docker compose up` is not required before running these tests.
+
+Run only the Kafka integration tests:
+
+```bash
+mvn -pl notification-service verify -Pintegration
+```
+
+The success test configures `FAIL_FIRST_N_ATTEMPTS` using the same retry constants as the application and publishes a real JSON `OrderConfirmed` record to the `notification` Kafka topic:
+
+```text
+OrderConfirmed
+    ->
+attempt 1 fails
+    ->
+attempt 2 fails
+    ->
+attempt 3 fails
+    ->
+attempt 4 succeeds
+    ->
+successful notification record
+```
+
+It verifies the stored notification reports `attempts = MAX_ATTEMPTS` and confirms that no DLQ record for that event appears on `notification-dlq`.
+
+The failure test configures `ALWAYS_FAIL` and validates the complete failure path without directly calling the consumer, processor, or DLQ publisher:
+
+```text
+Kafka notification
+    ->
+NotificationKafkaConsumer
+    ->
+SmallRye Fault Tolerance retries
+    ->
+retries exhausted
+    ->
+FailedNotification
+    ->
+Kafka notification-dlq
+```
+
+The consumed DLQ record is asserted to contain the complete original event, `eventId`, `orderId`, `customerEmail`, the failure reason, `failedAt`, and `numberOfAttempts = EmailDeliveryService.MAX_ATTEMPTS`.
+
+This is intentionally different from the existing unit tests: the DLQ assertion reads from a real Kafka topic. There is no in-memory DLQ publisher or mocked Kafka transport in `KafkaRetryDlqIT`.
 
 ## Endpoints
 

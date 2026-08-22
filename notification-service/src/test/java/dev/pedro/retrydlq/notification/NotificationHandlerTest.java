@@ -8,6 +8,7 @@ import dev.pedro.retrydlq.notification.service.NotificationHandler;
 import dev.pedro.retrydlq.notification.store.DlqStore;
 import dev.pedro.retrydlq.notification.store.NotificationStore;
 import io.quarkus.test.junit.QuarkusTest;
+import io.quarkus.test.junit.TestProfile;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @QuarkusTest
+@TestProfile(UnitNotificationTestProfile.class)
 class NotificationHandlerTest {
 
     @Inject
