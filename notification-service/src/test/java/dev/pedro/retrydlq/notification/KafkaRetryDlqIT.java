@@ -38,6 +38,7 @@ class KafkaRetryDlqIT {
 
     private static final String NOTIFICATION_TOPIC = "notification";
     private static final String DLQ_TOPIC = "notification-dlq";
+    private static final Duration DLQ_CONSUMER_TIMEOUT = Duration.ofSeconds(30);
 
     @InjectKafkaCompanion
     KafkaCompanion companion;
@@ -84,7 +85,7 @@ class KafkaRetryDlqIT {
 
         publish(event);
 
-        ConsumerRecord<String, String> dlqRecord = dlqRecords.awaitCompletion().getLastRecord();
+        ConsumerRecord<String, String> dlqRecord = dlqRecords.awaitCompletion(DLQ_CONSUMER_TIMEOUT).getLastRecord();
         FailedNotification failure = objectMapper.readValue(dlqRecord.value(), FailedNotification.class);
 
         assertEquals(event, failure.originalEvent());
