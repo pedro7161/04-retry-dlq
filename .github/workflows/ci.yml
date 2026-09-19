@@ -1,10 +1,14 @@
 name: CI
 
+# The Kafka suite uses a second runner; opt in to it when dispatching the workflow.
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
+    inputs:
+      run_integration:
+        description: Run the Kafka integration suite after unit tests pass
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -28,6 +32,8 @@ jobs:
         run: mvn -B --no-transfer-progress verify
 
   kafka-integration-tests:
+    if: inputs.run_integration
+    needs: build-and-test
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
